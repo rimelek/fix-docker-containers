@@ -1,0 +1,8 @@
+x-command: &command httpd-foreground -e trace8
+
+services:
+  httpd:
+    image: httpd:2.4
+    command: *command
+    labels:
+      - fixcontainers

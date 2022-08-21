@@ -1,0 +1,8 @@
+x-command: &command httpd-foreground -e race8
+
+services:
+  httpd:
+    image: httpd:2.4
+    command: *command
+    labels:
+      - fixcontainers
