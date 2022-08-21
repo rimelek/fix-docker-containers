@@ -1,5 +1,11 @@
 # README
 
+## Download from GitHub
+
+```bash
+git clone https://github.com/itsziget/fix-docker-containers.git
+```
+
 ## Links ad recommendations for debugging and learning
 
 - Links to the documentation
