@@ -31,7 +31,7 @@ git clone https://github.com/itsziget/fix-docker-containers.git
   - Never change anything in the Docker data directory manually, but you can read it
   - Use your favorite search engine to search for error messages
 - Ask for help:
-  - Some advise for asking help and reporting issues: \
+  - Some advice for asking help and reporting issues: \
     https://www.slideshare.net/kosTakcs/getting-help-with-docker-reporting-and-fixing-bugs-in-an-opensource-component
   - If you still need help: https://forums.docker.com/
 
