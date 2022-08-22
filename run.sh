@@ -170,6 +170,11 @@ run_i 2 0 <(cat <<EOF
   docker container ls --all --filter label=fixcontainers
 EOF
 )
+
+run_i 2 0 <(cat <<EOF
+  docker container logs --tail 30 {v}
+EOF
+)
 # endregion
 
 # region example: v1
