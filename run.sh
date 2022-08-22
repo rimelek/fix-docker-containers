@@ -39,6 +39,10 @@ function info() {
   color "" "$FORMAT_BOLD" "$FG_YELLOW" "$@"
 }
 
+function step_info() {
+  color "" "$FORMAT_BOLD" "$FG_GREEN" "$@"
+}
+
 function run() {
   local command="$1"
 
@@ -52,14 +56,14 @@ function run() {
 
   [[ -n "${2:-}" ]] && command="$1 $2"
 
-  echo "[Step $step] command:"
+  step_info "[Step $step] command:"
 
   info "$command" | awk '{ gsub("\t", "\\t"); print $0 }'
 
   if [[ "$step_by_step" == "1" ]]; then
     echo
-    read -r -p "[Step $step] Press ENTER to run the above command"
-    echo
+    step_info "[Step $step] Press ENTER to run the above command"
+    read -r
   fi
 
   eval "$command" 1> "$stdout_tmp" 2> "$stderr_tmp"
@@ -70,7 +74,8 @@ function run() {
 
   if [[ "$step_by_step" == "1" ]]; then
     echo
-    read -r -p "[Step $step] Press ENTER to continue"
+    step_info "[Step $step] Press ENTER to continue"
+    read -r
     echo
   fi
 
