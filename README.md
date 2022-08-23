@@ -6,7 +6,7 @@
 git clone https://github.com/itsziget/fix-docker-containers.git
 ```
 
-## Links ad recommendations for debugging and learning
+## Links and recommendations for debugging and learning
 
 - Links to the documentation
   - https://docs.docker.com/config/daemon/#troubleshoot-the-daemon
