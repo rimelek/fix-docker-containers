@@ -66,11 +66,8 @@ function run() {
     read -r
   fi
 
-  eval "$command" 1> "$stdout_tmp" 2> "$stderr_tmp"
+  eval "$command"
   err=$?
-
-  cat "$stdout_tmp" &> /dev/stdout
-  cat "$stderr_tmp" &> /dev/stderr
 
   if [[ "$step_by_step" == "1" ]]; then
     echo
@@ -191,12 +188,11 @@ EOF
 
 # region example: v2
 run_i 2 2 <(cat <<EOF
-  docker run --label fixcontainers --rm --name {v} httpd:2.4 sh -c "httpd-foregroun"
-EOF
-)
-
-run_i 2 2 <(cat <<EOF
-  docker container ls --all --filter label=fixcontainers
+  docker run --label fixcontainers --rm -it --name {v} httpd:2.4 bash
+  # Run in the container:
+  #
+  # httpd-foregroun
+  # exit
 EOF
 )
 # endregion
@@ -283,7 +279,7 @@ EOF
 # region example: v7
 run_i 2 7 <(cat <<'EOF'
   chmod 774 $PWD/examples/{v}/entrypoint.sh
-  docker run --label fixcontainers -d -v $PWD/examples/{v}/entrypoint.sh:/entrypoint.sh --entrypoint /entrypoint.sh --name {v} httpd:2.4
+  docker run --label fixcontainers -d -v $PWD/examples/{v}/entrypoint.sh:/entrypoint.sh --entrypoint /entrypoint.sh --name {v}-exiting httpd:2.4
 EOF
 )
 
@@ -293,22 +289,43 @@ EOF
 )
 
 run_i 2 7 <(cat <<'EOF'
- docker logs --tail 10 {v}
+  cat $PWD/examples/{v}/entrypoint.sh
 EOF
 )
 
-run_i 2 7 <(cat <<EOF
-  docker container inspect {v}
+run_i 2 7 <(cat <<'EOF'
+ docker logs --tail 10 {v}-exiting
 EOF
 )
 
-run_i 2 7 <(cat <<EOF
+run_i 2 7 <(cat <<'EOF'
+  docker container inspect {v}-exiting
+EOF
+)
+
+run_i 2 7 <(cat <<'EOF'
   docker image inspect httpd:2.4 --format "{{ json .Config.Cmd }}" | python3 -m json.tool
 EOF
 )
 
-run_i 2 7 <(cat <<EOF
-  docker container inspect {v} --format "{{ json .Config.Cmd }}" | python3 -m json.tool
+run_i 2 7 <(cat <<'EOF'
+  docker container inspect {v}-exiting --format "{{ json .Config.Cmd }}" | python3 -m json.tool
+EOF
+)
+
+run_i 2 7 <(cat <<'EOF'
+  chmod 774 $PWD/examples/{v}/entrypoint.sh
+  docker run --label fixcontainers -d -v $PWD/examples/{v}/entrypoint.sh:/entrypoint.sh --entrypoint /entrypoint.sh --name {v}-running httpd:2.4 httpd-foreground
+EOF
+)
+
+run_i 2 7 <(cat <<'EOF'
+  docker container ls --all --filter label=fixcontainers --format 'table {{ .Names }}\t{{ .Status }}\t{{ .Command }}' --no-trunc
+EOF
+)
+
+run_i 2 7 <(cat <<'EOF'
+ docker logs --tail 10 {v}-running
 EOF
 )
 # endregion
@@ -377,6 +394,8 @@ EOF
 )
 
 run_i 2 8 <(cat <<'EOF'
+  # https://github.com/justincormack/nsenter1
+  # https://gist.github.com/BretFisher/5e1a0c7bcca4c735e716abf62afad389
   docker run --rm --privileged --pid=host alpine:3.16.2 nsenter -t 1 -m -u -i -n -p -- sh -c "
        cd \"$(docker container inspect {v} --format '{{ .GraphDriver.Data.UpperDir }}')\" \\
     && find .
@@ -413,7 +432,7 @@ EOF
 )
 
 run_i 2 10 <(cat <<'EOF'
-  docker build $PWD/examples/{v} --label fixcontainers --tag "localhost/{v}" --progress plain
+  docker build $PWD/examples/{v} --label fixcontainers --tag "localhost/{v}" --progress plain --no-cache
 EOF
 )
 
@@ -428,7 +447,10 @@ EOF
 )
 
 run_i 2 11 <(cat <<'EOF'
-  docker run --rm --name {v} "localhost/{v}" ls -la /usr/local/bin/
+  docker run --rm -it --name {v} "localhost/{v}" sh
+  # Run in the container
+  #
+  # ls -la /usr/local/bin/
 EOF
 )
 
@@ -503,8 +525,8 @@ EOF
 )
 
 run_i 2 15 <(cat <<'EOF'
-  # Run a new HTTPD to test fil editing
-  # DO NOT do it in a production environment, unless there is no idea way
+  # Run a new HTTPD to test file editing
+  # Only for testing NOT FOR changing production configuration
   docker run -d --label fixcontainers --name {v}-server httpd:2.4
 EOF
 )
@@ -512,6 +534,7 @@ EOF
 run_i 2 15 <(cat <<'EOF'
   docker run \
     --rm \
+    -it \
     --network container:{v}-server \
     --label fixcontainers \
     --name {v}-client \
@@ -539,12 +562,12 @@ EOF
 )
 
 run_i 2 16 <(cat <<'EOF'
-  echo "Run the following command to kill the Docker daemon in the VM:"
-  echo
-  echo 'docker run --rm --privileged --pid=host alpine:3.16.2 nsenter -t 1 -m -u -i -n -p -- sh -c "
-    pkill -9 docker
-  "'
-  echo
+  docker run --rm -it --privileged --pid=host --name {v}-vmlogin alpine:3.16.2 \
+    nsenter -t 1 -m -u -i -n -p -- \
+      ctr -n services.linuxkit task exec -t --exec-id dockertest docker \
+        docker container ls --all --filter label=fixcontainers \
+                            --format 'table {{ .Names }}\t{{ .Status }}\t{{ .Command }}' --no-trunc
+  
 EOF
 )
 
@@ -555,7 +578,12 @@ run_i 2 16 <(cat <<'EOF'
   echo 'Run the following commands on macOS to log in to the VM:'
   echo
   echo 'brew install socat'
+  echo 'socat $HOME/Library/Containers/com.docker.docker/Data/debug-shell.sock -,rawer'
+  echo '# Press ENTER, and use the exit command exit'
   echo 'socat $HOME/Library/Containers/com.docker.docker/Data/vms/0/console.sock -,rawer'
+  echo '# Press ENTER, and close the terminal to exit'
+  #
+  # Troubleshoot: https://docs.docker.com/desktop/troubleshoot/overview/
 EOF
 )
 
